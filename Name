@@ -1,0 +1,28 @@
+--[[
+Script para Roblox: UI para Teleportar usando JobId
+Coloque este script em StarterGui como um LocalScript.
+]]
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- ID do seu jogo (substitua pelo seu!)
+local PLACE_ID = game.PlaceId
+
+-- Criar a tela principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "JobIdTeleportUI"
+screenGui.Parent = player.PlayerGui
+
+-- Frame central
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1
