@@ -1,0 +1,82 @@
+--[[
+Script para Roblox: UI para Teleportar usando JobId
+Coloque este script em StarterGui como um LocalScript.
+]]
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- ID do seu jogo (substitua pelo seu!)
+local PLACE_ID = game.PlaceId
+
+-- Criar a tela principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "JobIdTeleportUI"
+screenGui.Parent = player.PlayerGui
+
+-- Frame central
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Teleportar por JobId"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22
+title.Parent = frame
+
+-- Caixa de texto para JobId
+local jobIdBox = Instance.new("TextBox")
+jobIdBox.Size = UDim2.new(0.9, 0, 0, 30)
+jobIdBox.Position = UDim2.new(0.05, 0, 0, 55)
+jobIdBox.PlaceholderText = "Cole o JobId aqui"
+jobIdBox.Text = ""
+jobIdBox.Font = Enum.Font.SourceSans
+jobIdBox.TextSize = 18
+jobIdBox.TextColor3 = Color3.fromRGB(0,0,0)
+jobIdBox.BackgroundColor3 = Color3.fromRGB(230,230,230)
+jobIdBox.BorderSizePixel = 0
+jobIdBox.ClearTextOnFocus = false
+jobIdBox.Parent = frame
+
+-- Botão de teleportar
+local teleportBtn = Instance.new("TextButton")
+teleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
+teleportBtn.Position = UDim2.new(0.05, 0, 0, 100)
+teleportBtn.Text = "Teleportar"
+teleportBtn.Font = Enum.Font.SourceSansBold
+teleportBtn.TextSize = 20
+teleportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+teleportBtn.BorderSizePixel = 0
+teleportBtn.Parent = frame
+
+-- Função de teleporte
+teleportBtn.MouseButton1Click:Connect(function()
+    local jobId = jobIdBox.Text
+    if jobId and jobId ~= "" then
+        teleportBtn.Text = "Teleportando..."
+        teleportBtn.BackgroundColor3 = Color3.fromRGB(170, 170, 0)
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(PLACE_ID, jobId, player)
+        end)
+        wait(1)
+        teleportBtn.Text = "Teleportar"
+        teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        teleportBtn.Text = "Insira um JobId!"
+        teleportBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        wait(1)
+        teleportBtn.Text = "Teleportar"
+        teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    end
+end)
