@@ -7,11 +7,13 @@ local character = player.Character or player.CharacterAdded:Wait()
 
 local savedPosition = nil
 local noclipActive = false
+local guiVisible = true
 
 -- Criar GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 screenGui.Name = "TeleportAndNoclipGUI"
 
+-- Função para criar botão
 local function createButton(name, position, text)
 	local button = Instance.new("TextButton")
 	button.Name = name
@@ -25,10 +27,22 @@ local function createButton(name, position, text)
 	return button
 end
 
--- Botões
-local savePosButton = createButton("SavePosButton", UDim2.new(0, 10, 0, 10), "Salvar Posição")
-local teleportButton = createButton("TeleportButton", UDim2.new(0, 10, 0, 70), "Teleportar")
-local noclipButton = createButton("NoclipButton", UDim2.new(0, 10, 0, 130), "Ativar Noclip")
+-- Botões principais
+local savePosButton = createButton("SavePosButton", UDim2.new(0, 10, 0, 60), "Salvar Posição")
+local teleportButton = createButton("TeleportButton", UDim2.new(0, 10, 0, 120), "Teleportar")
+local noclipButton = createButton("NoclipButton", UDim2.new(0, 10, 0, 180), "Ativar Noclip")
+
+-- Botão para mostrar/ocultar GUI
+local toggleGUIButton = createButton("ToggleGUIButton", UDim2.new(0, 10, 0, 0), "Fechar GUI")
+
+-- Função: Alternar visibilidade da GUI
+toggleGUIButton.MouseButton1Click:Connect(function()
+	guiVisible = not guiVisible
+	savePosButton.Visible = guiVisible
+	teleportButton.Visible = guiVisible
+	noclipButton.Visible = guiVisible
+	toggleGUIButton.Text = guiVisible and "Fechar GUI" or "Abrir GUI"
+end)
 
 -- Função para salvar posição
 savePosButton.MouseButton1Click:Connect(function()
