@@ -1,0 +1,75 @@
+local WindUI = require(path.to.windui) -- Substitua pelo caminho correto se necessário
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local savedPosition = nil
+local noclipActive = false
+
+-- Criar janela
+local window = WindUI:CreateWindow({
+    Title = "Ferramentas de Jogador",
+    Theme = "Dark",
+    Folder = "WindUI/PlayerTools",
+    Acrylic = false,
+    Transparent = true,
+    KeySystem = false -- ou configure o sistema de chave se necessário
+})
+
+-- Criar aba
+local mainTab = window:CreateTab("Teleport/Noclip", 1234567890) -- Substitua por um ID de ícone válido ou remova o segundo parâmetro
+
+-- Adicionar botões na aba
+mainTab:AddButton({
+    Title = "Salvar Posição",
+    Callback = function()
+        character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            savedPosition = humanoidRootPart.Position
+            WindUI:Notify({
+                Title = "Posição Salva",
+                Content = "Você salvou a posição com sucesso.",
+                Duration = 3
+            })
+        end
+    end
+})
+
+mainTab:AddButton({
+    Title = "Teleportar",
+    Callback = function()
+        character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart and savedPosition then
+            humanoidRootPart.CFrame = CFrame.new(savedPosition)
+        end
+    end
+})
+
+mainTab:AddButton({
+    Title = "Alternar Noclip",
+    Callback = function()
+        noclipActive = not noclipActive
+        WindUI:Notify({
+            Title = "Noclip",
+            Content = noclipActive and "Noclip ativado" or "Noclip desativado",
+            Duration = 2
+        })
+    end
+})
+
+-- Loop para manter noclip
+game:GetService("RunService").Stepped:Connect(function()
+    if noclipActive then
+        character = player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
