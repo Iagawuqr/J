@@ -1,82 +1,70 @@
---[[
-Script para Roblox: UI para Teleportar usando JobId
-Coloque este script em StarterGui como um LocalScript.
-]]
+-- LocalScript
 
-local TeleportService = game:GetService("TeleportService")
+-- Cria a interface
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
--- ID do seu jogo (substitua pelo seu!)
-local PLACE_ID = game.PlaceId
+local savedPosition = nil
+local noclipActive = false
 
--- Criar a tela principal
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "JobIdTeleportUI"
-screenGui.Parent = player.PlayerGui
+-- Criar GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "TeleportAndNoclipGUI"
 
--- Frame central
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 150)
-frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
+local function createButton(name, position, text)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Size = UDim2.new(0, 200, 0, 50)
+	button.Position = position
+	button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.TextScaled = true
+	button.Text = text
+	button.Parent = screenGui
+	return button
+end
 
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "Teleportar por JobId"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 22
-title.Parent = frame
+-- Botões
+local savePosButton = createButton("SavePosButton", UDim2.new(0, 10, 0, 10), "Salvar Posição")
+local teleportButton = createButton("TeleportButton", UDim2.new(0, 10, 0, 70), "Teleportar")
+local noclipButton = createButton("NoclipButton", UDim2.new(0, 10, 0, 130), "Ativar Noclip")
 
--- Caixa de texto para JobId
-local jobIdBox = Instance.new("TextBox")
-jobIdBox.Size = UDim2.new(0.9, 0, 0, 30)
-jobIdBox.Position = UDim2.new(0.05, 0, 0, 55)
-jobIdBox.PlaceholderText = "Cole o JobId aqui"
-jobIdBox.Text = ""
-jobIdBox.Font = Enum.Font.SourceSans
-jobIdBox.TextSize = 18
-jobIdBox.TextColor3 = Color3.fromRGB(0,0,0)
-jobIdBox.BackgroundColor3 = Color3.fromRGB(230,230,230)
-jobIdBox.BorderSizePixel = 0
-jobIdBox.ClearTextOnFocus = false
-jobIdBox.Parent = frame
+-- Função para salvar posição
+savePosButton.MouseButton1Click:Connect(function()
+	character = player.Character or player.CharacterAdded:Wait()
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if humanoidRootPart then
+		savedPosition = humanoidRootPart.Position
+		print("Posição salva:", savedPosition)
+	end
+end)
 
--- Botão de teleportar
-local teleportBtn = Instance.new("TextButton")
-teleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
-teleportBtn.Position = UDim2.new(0.05, 0, 0, 100)
-teleportBtn.Text = "Teleportar"
-teleportBtn.Font = Enum.Font.SourceSansBold
-teleportBtn.TextSize = 20
-teleportBtn.TextColor3 = Color3.fromRGB(255,255,255)
-teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-teleportBtn.BorderSizePixel = 0
-teleportBtn.Parent = frame
+-- Teleporte
+teleportButton.MouseButton1Click:Connect(function()
+	character = player.Character or player.CharacterAdded:Wait()
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if humanoidRootPart and savedPosition then
+		humanoidRootPart.CFrame = CFrame.new(savedPosition)
+	end
+end)
 
--- Função de teleporte
-teleportBtn.MouseButton1Click:Connect(function()
-    local jobId = jobIdBox.Text
-    if jobId and jobId ~= "" then
-        teleportBtn.Text = "Teleportando..."
-        teleportBtn.BackgroundColor3 = Color3.fromRGB(170, 170, 0)
-        pcall(function()
-            TeleportService:TeleportToPlaceInstance(PLACE_ID, jobId, player)
-        end)
-        wait(1)
-        teleportBtn.Text = "Teleportar"
-        teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        teleportBtn.Text = "Insira um JobId!"
-        teleportBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        wait(1)
-        teleportBtn.Text = "Teleportar"
-        teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    end
+-- Noclip toggle
+noclipButton.MouseButton1Click:Connect(function()
+	noclipActive = not noclipActive
+	noclipButton.Text = noclipActive and "Desativar Noclip" or "Ativar Noclip"
+end)
+
+-- Loop para manter noclip ativado
+game:GetService("RunService").Stepped:Connect(function()
+	if noclipActive then
+		character = player.Character
+		if character then
+			for _, part in pairs(character:GetDescendants()) do
+				if part:IsA("BasePart") and part.CanCollide == true then
+					part.CanCollide = false
+				end
+			end
+		end
+	end
 end)
