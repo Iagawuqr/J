@@ -1,5 +1,21 @@
-local WindUI = require(path.to.windui) -- Substitua pelo caminho correto se necessário
+-- Primeiro, carregue a lib Rayfield normalmente (já existe no seu source.txt)
 
+local Rayfield = loadstring(readfile("source.txt"))() -- ou onde estiver a lib
+
+-- Cria a janela principal
+local Window = Rayfield:CreateWindow({
+   Name = "Painel de Ferramentas",
+   LoadingTitle = "Carregando...",
+   LoadingSubtitle = "Teleport & Noclip",
+   ConfigurationSaving = {
+      Enabled = false
+   }
+})
+
+-- Cria uma aba
+local Tab = Window:CreateTab("Jogador", 4483362458) -- ícone opcional
+
+-- Variáveis
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -7,69 +23,50 @@ local character = player.Character or player.CharacterAdded:Wait()
 local savedPosition = nil
 local noclipActive = false
 
--- Criar janela
-local window = WindUI:CreateWindow({
-    Title = "Ferramentas de Jogador",
-    Theme = "Dark",
-    Folder = "WindUI/PlayerTools",
-    Acrylic = false,
-    Transparent = true,
-    KeySystem = false -- ou configure o sistema de chave se necessário
+-- Botão: Salvar Posição
+Tab:CreateButton({
+   Name = "Salvar Posição",
+   Callback = function()
+      character = player.Character or player.CharacterAdded:Wait()
+      local hrp = character:FindFirstChild("HumanoidRootPart")
+      if hrp then
+         savedPosition = hrp.Position
+         Rayfield:Notify({Title = "Posição Salva", Content = tostring(savedPosition)})
+      end
+   end
 })
 
--- Criar aba
-local mainTab = window:CreateTab("Teleport/Noclip", 1234567890) -- Substitua por um ID de ícone válido ou remova o segundo parâmetro
-
--- Adicionar botões na aba
-mainTab:AddButton({
-    Title = "Salvar Posição",
-    Callback = function()
-        character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            savedPosition = humanoidRootPart.Position
-            WindUI:Notify({
-                Title = "Posição Salva",
-                Content = "Você salvou a posição com sucesso.",
-                Duration = 3
-            })
-        end
-    end
+-- Botão: Teleportar
+Tab:CreateButton({
+   Name = "Teleportar",
+   Callback = function()
+      character = player.Character or player.CharacterAdded:Wait()
+      local hrp = character:FindFirstChild("HumanoidRootPart")
+      if hrp and savedPosition then
+         hrp.CFrame = CFrame.new(savedPosition)
+      end
+   end
 })
 
-mainTab:AddButton({
-    Title = "Teleportar",
-    Callback = function()
-        character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart and savedPosition then
-            humanoidRootPart.CFrame = CFrame.new(savedPosition)
-        end
-    end
-})
-
-mainTab:AddButton({
-    Title = "Alternar Noclip",
-    Callback = function()
-        noclipActive = not noclipActive
-        WindUI:Notify({
-            Title = "Noclip",
-            Content = noclipActive and "Noclip ativado" or "Noclip desativado",
-            Duration = 2
-        })
-    end
+-- Toggle: Noclip
+Tab:CreateToggle({
+   Name = "Ativar Noclip",
+   CurrentValue = false,
+   Callback = function(Value)
+      noclipActive = Value
+   end
 })
 
 -- Loop para manter noclip
 game:GetService("RunService").Stepped:Connect(function()
-    if noclipActive then
-        character = player.Character
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
+   if noclipActive then
+      character = player.Character
+      if character then
+         for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+               part.CanCollide = false
             end
-        end
-    end
+         end
+      end
+   end
 end)
