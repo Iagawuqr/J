@@ -1,0 +1,746 @@
+-- LocalScript - GUI Completa: Teleport, Noclip, FPS Viewer & ESP
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Variáveis principais
+local character = player.Character or player.CharacterAdded:Wait()
+local savedPosition = nil
+local noclipActive = false
+local guiVisible = true
+local espActive = false
+local fpsCounterActive = true
+
+-- Variáveis FPS
+local lastTime = tick()
+local frameCount = 0
+local fps = 0
+
+-- Variáveis ESP
+local ESPs = {}
+
+-- Configurações
+local Config = {
+    showFPS = true,
+    removeAccessories = true,
+    lowGraphics = true,
+    removeSounds = true,
+    optimizeWorkspace = true
+}
+
+-- Criar ScreenGui principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CompleteGUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 450)
+mainFrame.Position = UDim2.new(0, 50, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Adicionar cantos arredondados
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+-- Sombra
+local shadow = Instance.new("Frame")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 6, 1, 6)
+shadow.Position = UDim2.new(0, -3, 0, -3)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.BackgroundTransparency = 0.7
+shadow.ZIndex = mainFrame.ZIndex - 1
+shadow.Parent = mainFrame
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 12)
+shadowCorner.Parent = shadow
+
+-- Header/Título
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+-- Título
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🔧 Complete Exploits GUI"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
+
+-- Botão de minimizar
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -40, 0, 5)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 15)
+minimizeCorner.Parent = minimizeButton
+
+-- ScrollingFrame para botões
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ScrollFrame"
+scrollFrame.Size = UDim2.new(1, -20, 1, -60)
+scrollFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255)
+scrollFrame.Parent = mainFrame
+
+-- Container dos botões
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Name = "ButtonContainer"
+buttonContainer.Size = UDim2.new(1, -10, 0, 600)
+buttonContainer.Position = UDim2.new(0, 0, 0, 0)
+buttonContainer.BackgroundTransparency = 1
+buttonContainer.Parent = scrollFrame
+
+-- Configurar scroll
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+
+-- Layout dos botões
+local buttonLayout = Instance.new("UIListLayout")
+buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+buttonLayout.Padding = UDim.new(0, 8)
+buttonLayout.Parent = buttonContainer
+
+-- === FPS COUNTER GUI ===
+local fpsGui = Instance.new("ScreenGui")
+fpsGui.Name = "FPSCounter"
+fpsGui.ResetOnSpawn = false
+fpsGui.Parent = game.CoreGui
+
+local fpsFrame = Instance.new("Frame")
+fpsFrame.Name = "FPSFrame"
+fpsFrame.Parent = fpsGui
+fpsFrame.Size = UDim2.new(0, 120, 0, 60)
+fpsFrame.Position = UDim2.new(0, 10, 0, 10)
+fpsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+fpsFrame.BackgroundTransparency = 0.5
+fpsFrame.BorderSizePixel = 0
+
+local fpsCorner = Instance.new("UICorner")
+fpsCorner.CornerRadius = UDim.new(0, 8)
+fpsCorner.Parent = fpsFrame
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Name = "FPSLabel"
+fpsLabel.Parent = fpsFrame
+fpsLabel.Size = UDim2.new(1, 0, 0.6, 0)
+fpsLabel.Position = UDim2.new(0, 0, 0, 0)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: 0"
+fpsLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsLabel.TextStrokeTransparency = 0
+fpsLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+fpsLabel.TextScaled = true
+fpsLabel.Font = Enum.Font.SourceSansBold
+
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Name = "PingLabel"
+pingLabel.Parent = fpsFrame
+pingLabel.Size = UDim2.new(1, 0, 0.4, 0)
+pingLabel.Position = UDim2.new(0, 0, 0.6, 0)
+pingLabel.BackgroundTransparency = 1
+pingLabel.Text = "Ping: 0ms"
+pingLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+pingLabel.TextStrokeTransparency = 0
+pingLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+pingLabel.TextScaled = true
+pingLabel.Font = Enum.Font.SourceSans
+
+-- Função para criar botões estilizados
+local function createStyledButton(name, text, color, layoutOrder)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(1, 0, 0, 45)
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextScaled = true
+    button.Font = Enum.Font.Gotham
+    button.LayoutOrder = layoutOrder
+    button.Parent = buttonContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+    
+    -- Efeito hover
+    local originalColor = color
+    local hoverColor = Color3.fromRGB(
+        math.min(255, color.R * 255 + 20),
+        math.min(255, color.G * 255 + 20),
+        math.min(255, color.B * 255 + 20)
+    )
+    
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundColor3 = hoverColor}
+        ):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundColor3 = originalColor}
+        ):Play()
+    end)
+    
+    return button
+end
+
+-- Criar seções de botões
+local savePosButton = createStyledButton("SavePosButton", "💾 Salvar Posição", Color3.fromRGB(52, 152, 219), 1)
+local teleportButton = createStyledButton("TeleportButton", "⚡ Teleportar", Color3.fromRGB(46, 204, 113), 2)
+local noclipButton = createStyledButton("NoclipButton", "👻 Ativar Noclip", Color3.fromRGB(155, 89, 182), 3)
+
+-- Separador
+local separator1 = Instance.new("Frame")
+separator1.Size = UDim2.new(1, 0, 0, 2)
+separator1.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
+separator1.BorderSizePixel = 0
+separator1.LayoutOrder = 4
+separator1.Parent = buttonContainer
+
+-- Botões FPS/Performance
+local fpsToggleButton = createStyledButton("FPSToggleButton", "📊 Toggle FPS Counter", Color3.fromRGB(230, 126, 34), 5)
+local optimizeButton = createStyledButton("OptimizeButton", "⚡ Otimizar Performance", Color3.fromRGB(231, 76, 60), 6)
+local resetGraphicsButton = createStyledButton("ResetGraphicsButton", "🔄 Resetar Gráficos", Color3.fromRGB(149, 165, 166), 7)
+
+-- Separador
+local separator2 = Instance.new("Frame")
+separator2.Size = UDim2.new(1, 0, 0, 2)
+separator2.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
+separator2.BorderSizePixel = 0
+separator2.LayoutOrder = 8
+separator2.Parent = buttonContainer
+
+-- Botões ESP
+local espToggleButton = createStyledButton("ESPToggleButton", "👁️ Toggle ESP Players", Color3.fromRGB(26, 188, 156), 9)
+local espDistanceButton = createStyledButton("ESPDistanceButton", "📏 ESP com Distância", Color3.fromRGB(142, 68, 173), 10)
+
+-- Separador Funções Troll
+local separatorTroll = Instance.new("Frame")
+separatorTroll.Size = UDim2.new(1, 0, 0, 2)
+separatorTroll.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
+separatorTroll.BorderSizePixel = 0
+separatorTroll.LayoutOrder = 11
+separatorTroll.Parent = buttonContainer
+
+-- Botão Touch Fling
+local flingButton = createStyledButton("FlingButton", "🤾 Ativar Touch Fling", Color3.fromRGB(241, 196, 15), 12)
+
+-- Status labels
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "📍 Posição não salva"
+statusLabel.TextColor3 = Color3.fromRGB(189, 195, 199)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.LayoutOrder = 11
+statusLabel.Parent = buttonContainer
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 6)
+statusCorner.Parent = statusLabel
+
+local coordsLabel = Instance.new("TextLabel")
+coordsLabel.Name = "CoordsLabel"
+coordsLabel.Size = UDim2.new(1, 0, 0, 40)
+coordsLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+coordsLabel.BorderSizePixel = 0
+coordsLabel.Text = "X: 0 | Y: 0 | Z: 0"
+coordsLabel.TextColor3 = Color3.fromRGB(127, 140, 141)
+coordsLabel.TextScaled = true
+coordsLabel.Font = Enum.Font.Code
+coordsLabel.LayoutOrder = 12
+coordsLabel.Parent = buttonContainer
+
+local coordsCorner = Instance.new("UICorner")
+coordsCorner.CornerRadius = UDim.new(0, 6)
+coordsCorner.Parent = coordsLabel
+
+-- Botão flutuante
+local floatingButton = Instance.new("TextButton")
+floatingButton.Name = "FloatingButton"
+floatingButton.Size = UDim2.new(0, 60, 0, 60)
+floatingButton.Position = UDim2.new(0, 50, 0, 50)
+floatingButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+floatingButton.BorderSizePixel = 0
+floatingButton.Text = "🔧"
+floatingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatingButton.TextScaled = true
+floatingButton.Font = Enum.Font.GothamBold
+floatingButton.Visible = false
+floatingButton.Parent = screenGui
+
+local floatingCorner = Instance.new("UICorner")
+floatingCorner.CornerRadius = UDim.new(0, 30)
+floatingCorner.Parent = floatingButton
+
+-- === FUNÇÕES UTILITÁRIAS ===
+
+-- Função arrastar
+local function makeDraggable(frame, dragHandle)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    dragHandle.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame, titleBar)
+makeDraggable(floatingButton, floatingButton)
+
+-- Toggle GUI principal
+local function toggleGUI()
+    guiVisible = not guiVisible
+    
+    if guiVisible then
+        mainFrame.Visible = true
+        floatingButton.Visible = false
+        TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 320, 0, 450)}
+        ):Play()
+    else
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+            {Size = UDim2.new(0, 0, 0, 0)}
+        )
+        tween:Play()
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+            floatingButton.Visible = true
+            floatingButton.Position = mainFrame.Position
+        end)
+    end
+end
+
+-- === FUNÇÕES ANTI-LAG ===
+
+local function removeAccessories(character)
+    if not Config.removeAccessories then return end
+    for _, accessory in pairs(character:GetChildren()) do
+        if accessory:IsA("Accessory") or accessory:IsA("Hat") then
+            accessory:Destroy()
+        end
+    end
+end
+
+local function optimizeCharacter(character)
+    if not character then return end
+    removeAccessories(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Material = Enum.Material.SmoothPlastic
+            part.Reflectance = 0
+            part.CanCollide = false
+        end
+        for _, effect in pairs(part:GetChildren()) do
+            if effect:IsA("Fire") or effect:IsA("Smoke") or effect:IsA("Sparkles") then
+                effect:Destroy()
+            end
+        end
+    end
+end
+
+local function setLowGraphics()
+    if not Config.lowGraphics then return end
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100
+    Lighting.Brightness = 1
+    for _, effect in pairs(Lighting:GetChildren()) do
+        if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or 
+           effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
+            effect.Enabled = false
+        end
+    end
+    settings().Rendering.QualityLevel = 1
+end
+
+local function optimizeWorkspace()
+    if not Config.optimizeWorkspace then return end
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") or 
+           obj:IsA("PointLight") or obj:IsA("SpotLight") then
+            obj:Destroy()
+        end
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+        end
+        if Config.removeSounds and obj:IsA("Sound") then
+            obj.Volume = 0
+        end
+    end
+end
+
+-- === FUNÇÕES ESP ===
+
+local function createESP(targetPlayer)
+    if targetPlayer == player or ESPs[targetPlayer] then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = targetPlayer.Name .. "_ESP"
+    billboard.Adornee = nil
+    billboard.Size = UDim2.new(0, 100, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = game.CoreGui
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "PlayerName"
+    nameLabel.Parent = billboard
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.Text = targetPlayer.Name
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.SourceSansBold
+    
+    ESPs[targetPlayer] = {
+        billboard = billboard,
+        label = nameLabel
+    }
+end
+
+local function removeESP(targetPlayer)
+    if ESPs[targetPlayer] then
+        ESPs[targetPlayer].billboard:Destroy()
+        ESPs[targetPlayer] = nil
+    end
+end
+
+local function updateESPs()
+    if not espActive then return end
+    for targetPlayer, esp in pairs(ESPs) do
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and 
+           player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = targetPlayer.Character
+            local humanoidRootPart = character.HumanoidRootPart
+            local head = character:FindFirstChild("Head")
+            
+            if head then
+                esp.billboard.Adornee = head
+                local distance = (player.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                
+                if distance < 50 then
+                    esp.label.TextColor3 = Color3.new(0, 1, 0)
+                elseif distance < 100 then
+                    esp.label.TextColor3 = Color3.new(1, 1, 0)
+                else
+                    esp.label.TextColor3 = Color3.new(1, 0, 0)
+                end
+                
+                esp.label.Text = targetPlayer.Name .. "\n[" .. math.floor(distance) .. "m]"
+                esp.billboard.Enabled = true
+            end
+        else
+            esp.billboard.Enabled = false
+        end
+    end
+end
+
+local function toggleESP()
+    espActive = not espActive
+    espToggleButton.Text = espActive and "👁️ Desativar ESP" or "👁️ Ativar ESP"
+    espToggleButton.BackgroundColor3 = espActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(26, 188, 156)
+    
+    if espActive then
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            createESP(targetPlayer)
+        end
+    else
+        for targetPlayer, _ in pairs(ESPs) do
+            removeESP(targetPlayer)
+        end
+    end
+end
+
+-- === EVENTOS DOS BOTÕES ===
+
+minimizeButton.MouseButton1Click:Connect(toggleGUI)
+floatingButton.MouseButton1Click:Connect(toggleGUI)
+
+-- Teleport functions
+local function updateCurrentPosition()
+    character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local pos = character.HumanoidRootPart.Position
+        coordsLabel.Text = string.format("X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
+    end
+end
+
+savePosButton.MouseButton1Click:Connect(function()
+    character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        savedPosition = humanoidRootPart.Position
+        statusLabel.Text = "✅ Posição salva!"
+        statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
+        print("Posição salva:", savedPosition)
+    end
+end)
+
+teleportButton.MouseButton1Click:Connect(function()
+    character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart and savedPosition then
+        humanoidRootPart.CFrame = CFrame.new(savedPosition)
+    else
+        statusLabel.Text = "❌ Nenhuma posição salva!"
+        statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
+        wait(2)
+        statusLabel.Text = savedPosition and "✅ Posição salva!" or "📍 Posição não salva"
+        statusLabel.TextColor3 = savedPosition and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(189, 195, 199)
+    end
+end)
+
+noclipButton.MouseButton1Click:Connect(function()
+    noclipActive = not noclipActive
+    noclipButton.Text = noclipActive and "👻 Desativar Noclip" or "👻 Ativar Noclip"
+    noclipButton.BackgroundColor3 = noclipActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(155, 89, 182)
+end)
+
+-- FPS/Performance buttons
+fpsToggleButton.MouseButton1Click:Connect(function()
+    fpsCounterActive = not fpsCounterActive
+    fpsGui.Enabled = fpsCounterActive
+    fpsToggleButton.Text = fpsCounterActive and "📊 Ocultar FPS Counter" or "📊 Mostrar FPS Counter"
+end)
+
+optimizeButton.MouseButton1Click:Connect(function()
+    setLowGraphics()
+    optimizeWorkspace()
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer.Character then
+            optimizeCharacter(targetPlayer.Character)
+        end
+    end
+    print("Performance otimizada!")
+end)
+
+resetGraphicsButton.MouseButton1Click:Connect(function()
+    Lighting.GlobalShadows = true
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 2
+    settings().Rendering.QualityLevel = 10
+    print("Gráficos resetados!")
+end)
+
+-- ESP buttons
+espToggleButton.MouseButton1Click:Connect(toggleESP)
+
+espDistanceButton.MouseButton1Click:Connect(function()
+    -- Implementar diferentes modos de ESP
+    print("ESP com distância ativado!")
+end)
+
+-- === LOOPS PRINCIPAIS ===
+
+-- Noclip loop
+RunService.Stepped:Connect(function()
+    if noclipActive and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- FPS Counter loop
+RunService.Heartbeat:Connect(function()
+    frameCount = frameCount + 1
+    local currentTime = tick()
+    
+    if currentTime - lastTime >= 1 then
+        fps = frameCount
+        frameCount = 0
+        lastTime = currentTime
+        
+        if fpsCounterActive then
+            local fpsColor = Color3.new(1, 1, 1)
+            if fps >= 50 then
+                fpsColor = Color3.new(0, 1, 0)
+            elseif fps >= 30 then
+                fpsColor = Color3.new(1, 1, 0)
+            else
+                fpsColor = Color3.new(1, 0, 0)
+            end
+            
+            fpsLabel.TextColor3 = fpsColor
+            fpsLabel.Text = "FPS: " .. fps
+            
+            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
+            pingLabel.Text = "Ping: " .. ping
+        end
+    end
+    
+    -- Update coordinates
+    updateCurrentPosition()
+    
+    -- Update ESP
+    updateESPs()
+end)
+
+-- Player events
+Players.PlayerAdded:Connect(function(targetPlayer)
+    targetPlayer.CharacterAdded:Connect(function(character)
+        wait(1)
+        optimizeCharacter(character)
+    end)
+    
+    if espActive then
+        createESP(targetPlayer)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(targetPlayer)
+    removeESP(targetPlayer)
+end)
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+end)
+
+-- Keyboard shortcuts
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.H then
+        toggleGUI()
+    elseif input.KeyCode == Enum.KeyCode.F1 then
+        fpsCounterActive = not fpsCounterActive
+        fpsGui.Enabled = fpsCounterActive
+    elseif input.KeyCode == Enum.KeyCode.F2 then
+        setLowGraphics()
+        optimizeWorkspace()
+    elseif input.KeyCode == Enum.KeyCode.F3 then
+        Config.removeAccessories = not Config.removeAccessories
+    elseif input.KeyCode == Enum.KeyCode.F then
+        toggleESP()
+    end
+end)
+
+-- Apply initial optimizations
+setLowGraphics()
+optimizeWorkspace()
+
+-- === TOUCH FLING ===
+local flingActive = false
+local flingPower = 5000 -- Força do fling
+
+local function flingTarget(target)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and target and target:IsA("BasePart") then
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = (target.Position - hrp.Position).Unit * flingPower
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Parent = hrp
+        game:GetService("Debris"):AddItem(bv, 0.2)
+    end
+end
+
+flingButton.MouseButton1Click:Connect(function()
+    flingActive = not flingActive
+    flingButton.Text = flingActive and "🤾 Desativar Touch Fling" or "🤾 Ativar Touch Fling"
+    flingButton.BackgroundColor3 = flingActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(241, 196, 15)
+end)
+
+-- Detectar toque na tela
+UserInputService.TouchTap:Connect(function(touchPositions, processed)
+    if not flingActive or processed then return end
+    local touchPos = touchPositions[1]
+    local unitRay = Camera:ScreenPointToRay(touchPos.X, touchPos.Y)
+    local ray = Ray.new(unitRay.Origin, unitRay.Direction * 500)
+    local part, pos = workspace:FindPartOnRay(ray, player.Character)
+
+    if part and part.Parent and part.Parent:FindFirstChild("Humanoid") then
+        flingTarget(part)
+        print("Fling aplicado em:", part.Parent.Name)
+    end
+end)
+
+-- Cleanup function
+local function cleanup()
+    if fpsGui then fpsGui:Destroy() end
+    if screenGui then screenGui:Destroy() end
+    for targetPlayer, _ in pairs(ESPs) do
+        removeESP(targetPlayer)
+    end
+end
+
+game:BindToClose(cleanup)
+
+-- Initial messages
+print("=== GUI COMPLETA CARREGADA ===")
+print("H - Toggle GUI principal")
+print("F1 - Toggle FPS Counter")
+print("F2 - Aplicar otimizações")
+print("F3 - Toggle remoção de acessórios") 
+print("F - Toggle ESP Players")
+print("GUI completa ativa!")
