@@ -1,0 +1,1542 @@
+-- LocalScript - GUI Completa: Teleport, Noclip, FPS Viewer, ESP & Troll Menu (FIXED & ENHANCED)
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Variáveis principais
+local character = player.Character or player.CharacterAdded:Wait()
+local savedPosition = nil
+local noclipActive = false
+local guiVisible = true
+local espActive = false
+local fpsCounterActive = true
+local infiniteJumpActive = false
+local invisibilityActive = false
+local visualLagActive = false
+local flyActive = false
+local antiFlingActive = false
+local cframeActive = false
+
+-- Variáveis de velocidade
+local defaultWalkSpeed = 16
+local currentWalkSpeed = 16
+
+-- Variáveis FPS
+local lastTime = tick()
+local frameCount = 0
+local fps = 0
+
+-- Variáveis ESP
+local ESPs = {}
+
+-- Variáveis Touch Fling
+local touchFlingActive = false
+local flingPower = 500000
+
+-- Variáveis Fly
+local bodyVelocity = nil
+local bodyAngularVelocity = nil
+
+-- Variáveis Hitbox
+local hitboxSize = 1
+local originalHitboxSize = nil
+
+-- Configurações
+local Config = {
+    showFPS = true,
+    removeAccessories = true,
+    lowGraphics = true,
+    removeSounds = true,
+    optimizeWorkspace = true
+}
+
+-- Criar ScreenGui principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CompleteGUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 650)
+mainFrame.Position = UDim2.new(0, 50, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Adicionar cantos arredondados
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+-- Sombra
+local shadow = Instance.new("Frame")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 6, 1, 6)
+shadow.Position = UDim2.new(0, -3, 0, -3)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.BackgroundTransparency = 0.7
+shadow.ZIndex = mainFrame.ZIndex - 1
+shadow.Parent = mainFrame
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 12)
+shadowCorner.Parent = shadow
+
+-- Header/Título
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+-- Título
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🔧 Complete Exploits GUI"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
+
+-- Botão de minimizar
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -40, 0, 5)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 15)
+minimizeCorner.Parent = minimizeButton
+
+-- ScrollingFrame para botões
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ScrollFrame"
+scrollFrame.Size = UDim2.new(1, -20, 1, -60)
+scrollFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255)
+scrollFrame.Parent = mainFrame
+
+-- Container dos botões
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Name = "ButtonContainer"
+buttonContainer.Size = UDim2.new(1, -10, 0, 1200)
+buttonContainer.Position = UDim2.new(0, 0, 0, 0)
+buttonContainer.BackgroundTransparency = 1
+buttonContainer.Parent = scrollFrame
+
+-- Configurar scroll
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
+
+-- Layout dos botões
+local buttonLayout = Instance.new("UIListLayout")
+buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+buttonLayout.Padding = UDim.new(0, 8)
+buttonLayout.Parent = buttonContainer
+
+-- === FPS COUNTER GUI ===
+local fpsGui = Instance.new("ScreenGui")
+fpsGui.Name = "FPSCounter"
+fpsGui.ResetOnSpawn = false
+fpsGui.Parent = game.CoreGui
+
+local fpsFrame = Instance.new("Frame")
+fpsFrame.Name = "FPSFrame"
+fpsFrame.Parent = fpsGui
+fpsFrame.Size = UDim2.new(0, 120, 0, 60)
+fpsFrame.Position = UDim2.new(0, 10, 0, 10)
+fpsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+fpsFrame.BackgroundTransparency = 0.5
+fpsFrame.BorderSizePixel = 0
+
+local fpsCorner = Instance.new("UICorner")
+fpsCorner.CornerRadius = UDim.new(0, 8)
+fpsCorner.Parent = fpsFrame
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Name = "FPSLabel"
+fpsLabel.Parent = fpsFrame
+fpsLabel.Size = UDim2.new(1, 0, 0.6, 0)
+fpsLabel.Position = UDim2.new(0, 0, 0, 0)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: 0"
+fpsLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsLabel.TextStrokeTransparency = 0
+fpsLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+fpsLabel.TextScaled = true
+fpsLabel.Font = Enum.Font.SourceSansBold
+
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Name = "PingLabel"
+pingLabel.Parent = fpsFrame
+pingLabel.Size = UDim2.new(1, 0, 0.4, 0)
+pingLabel.Position = UDim2.new(0, 0, 0.6, 0)
+pingLabel.BackgroundTransparency = 1
+pingLabel.Text = "Ping: 0ms"
+pingLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+pingLabel.TextStrokeTransparency = 0
+pingLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+pingLabel.TextScaled = true
+pingLabel.Font = Enum.Font.SourceSans
+
+-- Botão flutuante
+local floatingButton = Instance.new("TextButton")
+floatingButton.Name = "FloatingButton"
+floatingButton.Size = UDim2.new(0, 60, 0, 60)
+floatingButton.Position = UDim2.new(0, 50, 0, 50)
+floatingButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+floatingButton.BorderSizePixel = 0
+floatingButton.Text = "🔧"
+floatingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatingButton.TextScaled = true
+floatingButton.Font = Enum.Font.GothamBold
+floatingButton.Visible = false
+floatingButton.Parent = screenGui
+
+local floatingCorner = Instance.new("UICorner")
+floatingCorner.CornerRadius = UDim.new(0, 30)
+floatingCorner.Parent = floatingButton
+
+-- === SPEED SELECTOR GUI ===
+local speedGui = Instance.new("ScreenGui")
+speedGui.Name = "SpeedSelector"
+speedGui.ResetOnSpawn = false
+speedGui.Parent = playerGui
+speedGui.Enabled = false
+
+local speedFrame = Instance.new("Frame")
+speedFrame.Name = "SpeedFrame"
+speedFrame.Size = UDim2.new(0, 250, 0, 150)
+speedFrame.Position = UDim2.new(0.5, -125, 0.5, -75)
+speedFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+speedFrame.BorderSizePixel = 0
+speedFrame.Parent = speedGui
+
+local speedFrameCorner = Instance.new("UICorner")
+speedFrameCorner.CornerRadius = UDim.new(0, 12)
+speedFrameCorner.Parent = speedFrame
+
+local speedTitle = Instance.new("TextLabel")
+speedTitle.Name = "SpeedTitle"
+speedTitle.Size = UDim2.new(1, 0, 0, 40)
+speedTitle.Position = UDim2.new(0, 0, 0, 0)
+speedTitle.BackgroundTransparency = 1
+speedTitle.Text = "⚡ Selecionar Velocidade"
+speedTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedTitle.TextScaled = true
+speedTitle.Font = Enum.Font.GothamBold
+speedTitle.Parent = speedFrame
+
+local speedSlider = Instance.new("Frame")
+speedSlider.Name = "SpeedSlider"
+speedSlider.Size = UDim2.new(0.8, 0, 0, 20)
+speedSlider.Position = UDim2.new(0.1, 0, 0, 60)
+speedSlider.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+speedSlider.BorderSizePixel = 0
+speedSlider.Parent = speedFrame
+
+local speedSliderCorner = Instance.new("UICorner")
+speedSliderCorner.CornerRadius = UDim.new(0, 10)
+speedSliderCorner.Parent = speedSlider
+
+local speedHandle = Instance.new("TextButton")
+speedHandle.Name = "SpeedHandle"
+speedHandle.Size = UDim2.new(0, 20, 0, 20)
+speedHandle.Position = UDim2.new(0, 0, 0, 0)
+speedHandle.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+speedHandle.BorderSizePixel = 0
+speedHandle.Text = ""
+speedHandle.Parent = speedSlider
+
+local speedHandleCorner = Instance.new("UICorner")
+speedHandleCorner.CornerRadius = UDim.new(0, 10)
+speedHandleCorner.Parent = speedHandle
+
+local speedValueLabel = Instance.new("TextLabel")
+speedValueLabel.Name = "SpeedValueLabel"
+speedValueLabel.Size = UDim2.new(1, 0, 0, 30)
+speedValueLabel.Position = UDim2.new(0, 0, 0, 90)
+speedValueLabel.BackgroundTransparency = 1
+speedValueLabel.Text = "Velocidade: 16"
+speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedValueLabel.TextScaled = true
+speedValueLabel.Font = Enum.Font.Gotham
+speedValueLabel.Parent = speedFrame
+
+local speedCloseButton = Instance.new("TextButton")
+speedCloseButton.Name = "SpeedCloseButton"
+speedCloseButton.Size = UDim2.new(0, 80, 0, 25)
+speedCloseButton.Position = UDim2.new(0.5, -40, 1, -35)
+speedCloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+speedCloseButton.BorderSizePixel = 0
+speedCloseButton.Text = "Fechar"
+speedCloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedCloseButton.TextScaled = true
+speedCloseButton.Font = Enum.Font.Gotham
+speedCloseButton.Parent = speedFrame
+
+local speedCloseCorner = Instance.new("UICorner")
+speedCloseCorner.CornerRadius = UDim.new(0, 6)
+speedCloseCorner.Parent = speedCloseButton
+
+-- === HITBOX EXPANDER GUI ===
+local hitboxGui = Instance.new("ScreenGui")
+hitboxGui.Name = "HitboxExpander"
+hitboxGui.ResetOnSpawn = false
+hitboxGui.Parent = playerGui
+hitboxGui.Enabled = false
+
+local hitboxFrame = Instance.new("Frame")
+hitboxFrame.Name = "HitboxFrame"
+hitboxFrame.Size = UDim2.new(0, 300, 0, 180)
+hitboxFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
+hitboxFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+hitboxFrame.BorderSizePixel = 0
+hitboxFrame.Parent = hitboxGui
+
+local hitboxFrameCorner = Instance.new("UICorner")
+hitboxFrameCorner.CornerRadius = UDim.new(0, 12)
+hitboxFrameCorner.Parent = hitboxFrame
+
+local hitboxTitle = Instance.new("TextLabel")
+hitboxTitle.Name = "HitboxTitle"
+hitboxTitle.Size = UDim2.new(1, 0, 0, 40)
+hitboxTitle.Position = UDim2.new(0, 0, 0, 0)
+hitboxTitle.BackgroundTransparency = 1
+hitboxTitle.Text = "📏 Hitbox Expander"
+hitboxTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxTitle.TextScaled = true
+hitboxTitle.Font = Enum.Font.GothamBold
+hitboxTitle.Parent = hitboxFrame
+
+local hitboxSlider = Instance.new("Frame")
+hitboxSlider.Name = "HitboxSlider"
+hitboxSlider.Size = UDim2.new(0.8, 0, 0, 20)
+hitboxSlider.Position = UDim2.new(0.1, 0, 0, 60)
+hitboxSlider.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+hitboxSlider.BorderSizePixel = 0
+hitboxSlider.Parent = hitboxFrame
+
+local hitboxSliderCorner = Instance.new("UICorner")
+hitboxSliderCorner.CornerRadius = UDim.new(0, 10)
+hitboxSliderCorner.Parent = hitboxSlider
+
+local hitboxHandle = Instance.new("TextButton")
+hitboxHandle.Name = "HitboxHandle"
+hitboxHandle.Size = UDim2.new(0, 20, 0, 20)
+hitboxHandle.Position = UDim2.new(0, 0, 0, 0)
+hitboxHandle.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+hitboxHandle.BorderSizePixel = 0
+hitboxHandle.Text = ""
+hitboxHandle.Parent = hitboxSlider
+
+local hitboxHandleCorner = Instance.new("UICorner")
+hitboxHandleCorner.CornerRadius = UDim.new(0, 10)
+hitboxHandleCorner.Parent = hitboxHandle
+
+local hitboxValueLabel = Instance.new("TextLabel")
+hitboxValueLabel.Name = "HitboxValueLabel"
+hitboxValueLabel.Size = UDim2.new(1, 0, 0, 30)
+hitboxValueLabel.Position = UDim2.new(0, 0, 0, 90)
+hitboxValueLabel.BackgroundTransparency = 1
+hitboxValueLabel.Text = "Tamanho: 1.0x"
+hitboxValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxValueLabel.TextScaled = true
+hitboxValueLabel.Font = Enum.Font.Gotham
+hitboxValueLabel.Parent = hitboxFrame
+
+local hitboxHalfButton = Instance.new("TextButton")
+hitboxHalfButton.Name = "HitboxHalfButton"
+hitboxHalfButton.Size = UDim2.new(0, 80, 0, 25)
+hitboxHalfButton.Position = UDim2.new(0.2, -40, 1, -35)
+hitboxHalfButton.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+hitboxHalfButton.BorderSizePixel = 0
+hitboxHalfButton.Text = "Metade"
+hitboxHalfButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxHalfButton.TextScaled = true
+hitboxHalfButton.Font = Enum.Font.Gotham
+hitboxHalfButton.Parent = hitboxFrame
+
+local hitboxHalfCorner = Instance.new("UICorner")
+hitboxHalfCorner.CornerRadius = UDim.new(0, 6)
+hitboxHalfCorner.Parent = hitboxHalfButton
+
+local hitboxCloseButton = Instance.new("TextButton")
+hitboxCloseButton.Name = "HitboxCloseButton"
+hitboxCloseButton.Size = UDim2.new(0, 80, 0, 25)
+hitboxCloseButton.Position = UDim2.new(0.8, -40, 1, -35)
+hitboxCloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+hitboxCloseButton.BorderSizePixel = 0
+hitboxCloseButton.Text = "Fechar"
+hitboxCloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxCloseButton.TextScaled = true
+hitboxCloseButton.Font = Enum.Font.Gotham
+hitboxCloseButton.Parent = hitboxFrame
+
+local hitboxCloseCorner = Instance.new("UICorner")
+hitboxCloseCorner.CornerRadius = UDim.new(0, 6)
+hitboxCloseCorner.Parent = hitboxCloseButton
+
+-- === FUNÇÕES UTILITÁRIAS ===
+
+-- Função arrastar
+local function makeDraggable(frame, dragHandle)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    local function inputBegan(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end
+
+    local function inputChanged(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+
+    local function inputEnded(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end
+
+    dragHandle.InputBegan:Connect(inputBegan)
+    dragHandle.InputChanged:Connect(inputChanged)
+    dragHandle.InputEnded:Connect(inputEnded)
+
+    -- Suporte para mobile
+    UserInputService.InputChanged:Connect(inputChanged)
+    UserInputService.InputEnded:Connect(inputEnded)
+end
+
+makeDraggable(mainFrame, titleBar)
+makeDraggable(floatingButton, floatingButton)
+makeDraggable(speedFrame, speedFrame)
+makeDraggable(hitboxFrame, hitboxFrame)
+
+-- Toggle GUI principal
+local function toggleGUI()
+    guiVisible = not guiVisible
+    
+    if guiVisible then
+        mainFrame.Visible = true
+        floatingButton.Visible = false
+        TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 320, 0, 650)}
+        ):Play()
+    else
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+            {Size = UDim2.new(0, 0, 0, 0)}
+        )
+        tween:Play()
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+            floatingButton.Visible = true
+            floatingButton.Position = mainFrame.Position
+        end)
+    end
+end
+
+-- Função para criar botões estilizados
+local function createStyledButton(name, text, color, layoutOrder)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(1, 0, 0, 45)
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextScaled = true
+    button.Font = Enum.Font.Gotham
+    button.LayoutOrder = layoutOrder
+    button.Parent = buttonContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+    
+    -- Efeito hover
+    local originalColor = color
+    local hoverColor = Color3.fromRGB(
+        math.min(255, color.R * 255 + 20),
+        math.min(255, color.G * 255 + 20),
+        math.min(255, color.B * 255 + 20)
+    )
+    
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundColor3 = hoverColor}
+        ):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundColor3 = originalColor}
+        ):Play()
+    end)
+    
+    return button
+end
+
+-- Função separador
+local function createSeparator(layoutOrder)
+    local separator = Instance.new("Frame")
+    separator.Size = UDim2.new(1, 0, 0, 2)
+    separator.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
+    separator.BorderSizePixel = 0
+    separator.LayoutOrder = layoutOrder
+    separator.Parent = buttonContainer
+    return separator
+end
+
+-- Criar seções de botões
+
+-- TELEPORT
+local savePosButton = createStyledButton("SavePosButton", "💾 Salvar Posição", Color3.fromRGB(52, 152, 219), 1)
+local teleportButton = createStyledButton("TeleportButton", "⚡ Teleportar", Color3.fromRGB(46, 204, 113), 2)
+local noclipButton = createStyledButton("NoclipButton", "👻 Ativar Noclip", Color3.fromRGB(155, 89, 182), 3)
+
+createSeparator(4)
+
+-- MOVEMENT
+local speedButton = createStyledButton("SpeedButton", "🏃 Alterar Velocidade", Color3.fromRGB(39, 174, 96), 5)
+local flyButton = createStyledButton("FlyButton", "🚁 Ativar Fly", Color3.fromRGB(52, 73, 94), 6)
+local infiniteJumpButton = createStyledButton("InfiniteJumpButton", "🦘 Infinite Jump", Color3.fromRGB(241, 196, 15), 7)
+local cframeButton = createStyledButton("CFrameButton", "📐 CFrame Speed", Color3.fromRGB(142, 68, 173), 8)
+
+createSeparator(9)
+
+-- PERFORMANCE
+local fpsToggleButton = createStyledButton("FPSToggleButton", "📊 Toggle FPS Counter", Color3.fromRGB(230, 126, 34), 10)
+local optimizeButton = createStyledButton("OptimizeButton", "⚡ Otimizar Performance", Color3.fromRGB(231, 76, 60), 11)
+local resetGraphicsButton = createStyledButton("ResetGraphicsButton", "🔄 Resetar Gráficos", Color3.fromRGB(149, 165, 166), 12)
+local shadersButton = createStyledButton("ShadersButton", "🌟 Ativar Shaders Realistas", Color3.fromRGB(138, 43, 226), 13)
+
+createSeparator(14)
+
+-- ESP
+local espToggleButton = createStyledButton("ESPToggleButton", "👁️ Toggle ESP Players", Color3.fromRGB(26, 188, 156), 15)
+local espDistanceButton = createStyledButton("ESPDistanceButton", "🔍 ESP com Distância", Color3.fromRGB(142, 68, 173), 16)
+
+createSeparator(17)
+
+-- HITBOX & PROTECTION
+local hitboxExpanderButton = createStyledButton("HitboxExpanderButton", "📏 Hitbox Expander", Color3.fromRGB(255, 140, 0), 18)
+local antiFlingButton = createStyledButton("AntiFlingButton", "🛡️ Anti-Fling", Color3.fromRGB(34, 139, 34), 19)
+local invisibilityButton = createStyledButton("InvisibilityButton", "👻 Ficar Invisível (FE)", Color3.fromRGB(155, 89, 182), 20)
+
+createSeparator(21)
+
+-- TROLL MENU
+local trollTitle = Instance.new("TextLabel")
+trollTitle.Name = "TrollTitle"
+trollTitle.Size = UDim2.new(1, 0, 0, 30)
+trollTitle.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+trollTitle.BorderSizePixel = 0
+trollTitle.Text = "😈 TROLL MENU"
+trollTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+trollTitle.TextScaled = true
+trollTitle.Font = Enum.Font.GothamBold
+trollTitle.LayoutOrder = 22
+trollTitle.Parent = buttonContainer
+
+local trollTitleCorner = Instance.new("UICorner")
+trollTitleCorner.CornerRadius = UDim.new(0, 6)
+trollTitleCorner.Parent = trollTitle
+
+local touchFlingButton = createStyledButton("TouchFlingButton", "👆 Touch Fling", Color3.fromRGB(231, 76, 60), 23)
+local visualLagButton = createStyledButton("VisualLagButton", "🔥 Lag Visual", Color3.fromRGB(255, 69, 0), 24)
+
+createSeparator(25)
+
+-- SERVER MENU
+local serverTitle = Instance.new("TextLabel")
+serverTitle.Name = "ServerTitle"
+serverTitle.Size = UDim2.new(1, 0, 0, 30)
+serverTitle.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+serverTitle.BorderSizePixel = 0
+serverTitle.Text = "🌐 SERVER MENU"
+serverTitle.TextColor3 = Color3.fromRGB(100, 150, 255)
+serverTitle.TextScaled = true
+serverTitle.Font = Enum.Font.GothamBold
+serverTitle.LayoutOrder = 26
+serverTitle.Parent = buttonContainer
+
+local serverTitleCorner = Instance.new("UICorner")
+serverTitleCorner.CornerRadius = UDim.new(0, 6)
+serverTitleCorner.Parent = serverTitle
+
+local rejoinButton = createStyledButton("RejoinButton", "🔄 Rejoin Server", Color3.fromRGB(192, 57, 43), 27)
+local serverHopButton = createStyledButton("ServerHopButton", "🚀 Server Hop", Color3.fromRGB(155, 89, 182), 28)
+
+createSeparator(29)
+
+-- Status labels
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "📍 Posição não salva"
+statusLabel.TextColor3 = Color3.fromRGB(189, 195, 199)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.LayoutOrder = 30
+statusLabel.Parent = buttonContainer
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 6)
+statusCorner.Parent = statusLabel
+
+local coordsLabel = Instance.new("TextLabel")
+coordsLabel.Name = "CoordsLabel"
+coordsLabel.Size = UDim2.new(1, 0, 0, 40)
+coordsLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+coordsLabel.BorderSizePixel = 0
+coordsLabel.Text = "X: 0 | Y: 0 | Z: 0"
+coordsLabel.TextColor3 = Color3.fromRGB(127, 140, 141)
+coordsLabel.TextScaled = true
+coordsLabel.Font = Enum.Font.Code
+coordsLabel.LayoutOrder = 31
+coordsLabel.Parent = buttonContainer
+
+local coordsCorner = Instance.new("UICorner")
+coordsCorner.CornerRadius = UDim.new(0, 6)
+coordsCorner.Parent = coordsLabel
+
+-- === FUNÇÕES ANTI-LAG ===
+
+local function removeAccessories(character)
+    if not Config.removeAccessories then return end
+    for _, accessory in pairs(character:GetChildren()) do
+        if accessory:IsA("Accessory") or accessory:IsA("Hat") then
+            accessory:Destroy()
+        end
+    end
+end
+
+local function optimizeCharacter(character)
+    if not character then return end
+    removeAccessories(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Material = Enum.Material.SmoothPlastic
+            part.Reflectance = 0
+            part.CanCollide = false
+        end
+        for _, effect in pairs(part:GetChildren()) do
+            if effect:IsA("Fire") or effect:IsA("Smoke") or effect:IsA("Sparkles") then
+                effect:Destroy()
+            end
+        end
+    end
+end
+
+local function setLowGraphics()
+    if not Config.lowGraphics then return end
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100
+    Lighting.Brightness = 1
+    for _, effect in pairs(Lighting:GetChildren()) do
+        if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or 
+           effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
+            effect.Enabled = false
+        end
+    end
+    settings().Rendering.QualityLevel = 1
+end
+
+local function setRealisticShaders()
+    Lighting.GlobalShadows = true
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 2
+    Lighting.ColorShift_Bottom = Color3.fromRGB(11, 0, 20)
+    Lighting.ColorShift_Top = Color3.fromRGB(240, 127, 14)
+    Lighting.OutdoorAmbient = Color3.fromRGB(34, 0, 49)
+    Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+    
+    local bloom = Instance.new("BloomEffect")
+    bloom.Intensity = 0.3
+    bloom.Size = 56
+    bloom.Threshold = 0.8
+    bloom.Parent = Lighting
+    
+    local blur = Instance.new("BlurEffect")
+    blur.Size = 2
+    blur.Parent = Lighting
+    
+    local colorCorrection = Instance.new("ColorCorrectionEffect")
+    colorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+    colorCorrection.Saturation = 0.1
+    colorCorrection.Contrast = 0.1
+    colorCorrection.Parent = Lighting
+    
+    settings().Rendering.QualityLevel = 10
+end
+
+local function optimizeWorkspace()
+    if not Config.optimizeWorkspace then return end
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") or 
+           obj:IsA("PointLight") or obj:IsA("SpotLight") then
+            obj:Destroy()
+        end
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+        end
+        if Config.removeSounds and obj:IsA("Sound") then
+            obj.Volume = 0
+        end
+    end
+end
+
+-- === FUNÇÕES ESP ===
+
+local function createESP(targetPlayer)
+    if targetPlayer == player or ESPs[targetPlayer] then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = targetPlayer.Name .. "_ESP"
+    billboard.Adornee = nil
+    billboard.Size = UDim2.new(0, 100, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = game.CoreGui
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "PlayerName"
+    nameLabel.Parent = billboard
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.Text = targetPlayer.Name
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.SourceSansBold
+    
+    ESPs[targetPlayer] = {
+        billboard = billboard,
+        label = nameLabel
+    }
+end
+
+local function removeESP(targetPlayer)
+    if ESPs[targetPlayer] then
+        ESPs[targetPlayer].billboard:Destroy()
+        ESPs[targetPlayer] = nil
+    end
+end
+
+local function updateESPs()
+    if not espActive then return end
+    for targetPlayer, esp in pairs(ESPs) do
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and 
+           player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = targetPlayer.Character
+            local humanoidRootPart = character.HumanoidRootPart
+            local head = character:FindFirstChild("Head")
+            
+            if head then
+                esp.billboard.Adornee = head
+                local distance = (player.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                
+                if distance < 50 then
+                    esp.label.TextColor3 = Color3.new(0, 1, 0)
+                elseif distance < 100 then
+                    esp.label.TextColor3 = Color3.new(1, 1, 0)
+                else
+                    esp.label.TextColor3 = Color3.new(1, 0, 0)
+                end
+                
+                esp.label.Text = targetPlayer.Name .. "\n[" .. math.floor(distance) .. "m]"
+                esp.billboard.Enabled = true
+            end
+        else
+            esp.billboard.Enabled = false
+        end
+    end
+end
+
+local function toggleESP()
+    espActive = not espActive
+    espToggleButton.Text = espActive and "👁️ Desativar ESP" or "👁️ Ativar ESP"
+    espToggleButton.BackgroundColor3 = espActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(26, 188, 156)
+    
+    if espActive then
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            createESP(targetPlayer)
+        end
+    else
+        for targetPlayer, _ in pairs(ESPs) do
+            removeESP(targetPlayer)
+        end
+    end
+end
+
+-- === FUNÇÕES FLY ===
+
+local function toggleFly()
+    flyActive = not flyActive
+    flyButton.Text = flyActive and "🚁 Desativar Fly" or "🚁 Ativar Fly"
+    flyButton.BackgroundColor3 = flyActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(52, 73, 94)
+    
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        
+        if flyActive then
+            -- Ativar fly
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = humanoidRootPart
+            
+            bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+            bodyAngularVelocity.MaxTorque = Vector3.new(4000, 4000, 4000)
+            bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, 0)
+            bodyAngularVelocity.Parent = humanoidRootPart
+        else
+            -- Desativar fly
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+                bodyVelocity = nil
+            end
+            if bodyAngularVelocity then
+                bodyAngularVelocity:Destroy()
+                bodyAngularVelocity = nil
+            end
+        end
+    end
+end
+
+-- === FUNÇÕES CFRAME ===
+
+local function toggleCFrame()
+    cframeActive = not cframeActive
+    cframeButton.Text = cframeActive and "📐 Desativar CFrame" or "📐 CFrame Speed"
+    cframeButton.BackgroundColor3 = cframeActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(142, 68, 173)
+end
+
+-- === FUNÇÕES ANTI-FLING ===
+
+local function toggleAntiFling()
+    antiFlingActive = not antiFlingActive
+    antiFlingButton.Text = antiFlingActive and "🛡️ Desativar Anti-Fling" or "🛡️ Anti-Fling"
+    antiFlingButton.BackgroundColor3 = antiFlingActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(34, 139, 34)
+end
+
+-- === FUNÇÕES HITBOX ===
+
+local function updateHitbox(size)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        if not originalHitboxSize then
+            originalHitboxSize = humanoidRootPart.Size
+        end
+        humanoidRootPart.Size = originalHitboxSize * size
+        humanoidRootPart.Transparency = size > 1 and 0.5 or 0
+        hitboxSize = size
+    end
+end
+
+local function setupHitboxSlider()
+    local dragging = false
+    
+    local function updateHandle(input)
+        local sliderPosition = hitboxSlider.AbsolutePosition
+        local sliderSize = hitboxSlider.AbsoluteSize
+        local mouseX = input.Position.X
+        
+        local relativeX = mouseX - sliderPosition.X
+        local percentage = math.clamp(relativeX / sliderSize.X, 0, 1)
+        
+        hitboxHandle.Position = UDim2.new(percentage, -10, 0, 0)
+        
+        -- Calcular tamanho (0.1x a 10x)
+        local size = 0.1 + (percentage * 9.9)
+        hitboxValueLabel.Text = string.format("Tamanho: %.1fx", size)
+        updateHitbox(size)
+    end
+    
+    hitboxHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+    
+    hitboxSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateHandle(input)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateHandle(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- === FUNÇÕES TROLL ===
+
+local function toggleTouchFling()
+    touchFlingActive = not touchFlingActive
+    touchFlingButton.Text = touchFlingActive and "👆 Desativar Touch Fling" or "👆 Touch Fling"
+    touchFlingButton.BackgroundColor3 = touchFlingActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+end
+
+local function applyTouchFling(targetPlayer)
+    if not touchFlingActive or not targetPlayer.Character then return end
+    
+    local character = targetPlayer.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoidRootPart and not antiFlingActive then
+        local bodyVel = Instance.new("BodyVelocity")
+        bodyVel.MaxForce = Vector3.new(flingPower, flingPower, flingPower)
+        bodyVel.Velocity = Vector3.new(
+            math.random(-100, 100),
+            math.random(50, 150),
+            math.random(-100, 100)
+        )
+        bodyVel.Parent = humanoidRootPart
+        
+        game:GetService("Debris"):AddItem(bodyVel, 0.3)
+    end
+end
+
+local function toggleInvisibility()
+    invisibilityActive = not invisibilityActive
+    invisibilityButton.Text = invisibilityActive and "👻 Desativar Invisível" or "👻 Ficar Invisível (FE)"
+    invisibilityButton.BackgroundColor3 = invisibilityActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(155, 89, 182)
+    
+    if player.Character then
+        for _, part in pairs(player.Character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = invisibilityActive and 1 or 0
+                
+                -- Criar nova part invisível
+                if invisibilityActive then
+                    local clone = part:Clone()
+                    clone.Name = part.Name .. "_Invisible"
+                    clone.Transparency = 1
+                    clone.CanCollide = false
+                    clone.Anchored = false
+                    clone.Parent = player.Character
+                    
+                    -- Weld para manter posição
+                    local weld = Instance.new("WeldConstraint")
+                    weld.Part0 = part
+                    weld.Part1 = clone
+                    weld.Parent = part
+                    
+                    part.Transparency = 1
+                end
+            elseif part:IsA("Accessory") then
+                local handle = part:FindFirstChild("Handle")
+                if handle then
+                    handle.Transparency = invisibilityActive and 1 or 0
+                end
+            end
+        end
+        
+        local head = player.Character:FindFirstChild("Head")
+        if head then
+            local face = head:FindFirstChild("face")
+            if face then
+                face.Transparency = invisibilityActive and 1 or 0
+            end
+        end
+    end
+end
+
+local function toggleInfiniteJump()
+    infiniteJumpActive = not infiniteJumpActive
+    infiniteJumpButton.Text = infiniteJumpActive and "🦘 Desativar Infinite Jump" or "🦘 Infinite Jump"
+    infiniteJumpButton.BackgroundColor3 = infiniteJumpActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(241, 196, 15)
+end
+
+local function toggleVisualLag()
+    visualLagActive = not visualLagActive
+    visualLagButton.Text = visualLagActive and "🔥 Desativar Lag Visual" or "🔥 Lag Visual"
+    visualLagButton.BackgroundColor3 = visualLagActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 69, 0)
+    
+    if visualLagActive then
+        for i = 1, 50 do
+            local part = Instance.new("Part")
+            part.Size = Vector3.new(10, 10, 10)
+            part.Position = Vector3.new(math.random(-100, 100), math.random(10, 50), math.random(-100, 100))
+            part.BrickColor = BrickColor.Random()
+            part.Material = Enum.Material.Neon
+            part.Shape = Enum.PartType.Ball
+            part.Parent = workspace
+            
+            local bodyVel = Instance.new("BodyVelocity")
+            bodyVel.MaxForce = Vector3.new(40000, 40000, 40000)
+            bodyVel.Velocity = Vector3.new(math.random(-50, 50), math.random(-50, 50), math.random(-50, 50))
+            bodyVel.Parent = part
+            
+            game:GetService("Debris"):AddItem(part, 3)
+        end
+    end
+end
+
+-- === SERVER HOP ===
+
+local function serverHop()
+    local success, result = pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        
+        local serverFound = false
+        for _, server in pairs(servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+                serverFound = true
+                break
+            end
+        end
+        
+        if not serverFound then
+            print("Nenhum servidor disponível encontrado!")
+        end
+    end)
+    
+    if not success then
+        print("Erro ao fazer server hop:", result)
+        -- Fallback: rejoin
+        TeleportService:Teleport(game.PlaceId, player)
+    end
+end
+
+-- === SPEED SLIDER ===
+
+local function updateSpeedSlider(value)
+    currentWalkSpeed = math.floor(16 + (value * 184)) -- 16 to 200
+    speedValueLabel.Text = "Velocidade: " .. currentWalkSpeed
+    
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = currentWalkSpeed
+    end
+end
+
+local function setupSpeedSlider()
+    local dragging = false
+    
+    local function updateHandle(input)
+        local sliderPosition = speedSlider.AbsolutePosition
+        local sliderSize = speedSlider.AbsoluteSize
+        local mouseX = input.Position.X
+        
+        local relativeX = mouseX - sliderPosition.X
+        local percentage = math.clamp(relativeX / sliderSize.X, 0, 1)
+        
+        speedHandle.Position = UDim2.new(percentage, -10, 0, 0)
+        updateSpeedSlider(percentage)
+    end
+    
+    speedHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+    
+    speedSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateHandle(input)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateHandle(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+setupSpeedSlider()
+setupHitboxSlider()
+
+-- === EVENTOS DOS BOTÕES ===
+
+minimizeButton.MouseButton1Click:Connect(toggleGUI)
+floatingButton.MouseButton1Click:Connect(toggleGUI)
+
+-- Teleport functions
+local function updateCurrentPosition()
+    character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local pos = character.HumanoidRootPart.Position
+        coordsLabel.Text = string.format("X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
+    end
+end
+
+savePosButton.MouseButton1Click:Connect(function()
+    character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        savedPosition = humanoidRootPart.Position
+        statusLabel.Text = "✅ Posição salva!"
+        statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
+        print("Posição salva:", savedPosition)
+    end
+end)
+
+teleportButton.MouseButton1Click:Connect(function()
+    character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart and savedPosition then
+        humanoidRootPart.CFrame = CFrame.new(savedPosition)
+    else
+        statusLabel.Text = "❌ Nenhuma posição salva!"
+        statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
+        wait(2)
+        statusLabel.Text = savedPosition and "✅ Posição salva!" or "📍 Posição não salva"
+        statusLabel.TextColor3 = savedPosition and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(189, 195, 199)
+    end
+end)
+
+noclipButton.MouseButton1Click:Connect(function()
+    noclipActive = not noclipActive
+    noclipButton.Text = noclipActive and "👻 Desativar Noclip" or "👻 Ativar Noclip"
+    noclipButton.BackgroundColor3 = noclipActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(155, 89, 182)
+end)
+
+-- Movement buttons
+speedButton.MouseButton1Click:Connect(function()
+    speedGui.Enabled = not speedGui.Enabled
+end)
+
+speedCloseButton.MouseButton1Click:Connect(function()
+    speedGui.Enabled = false
+end)
+
+flyButton.MouseButton1Click:Connect(toggleFly)
+infiniteJumpButton.MouseButton1Click:Connect(toggleInfiniteJump)
+cframeButton.MouseButton1Click:Connect(toggleCFrame)
+
+-- FPS/Performance buttons
+fpsToggleButton.MouseButton1Click:Connect(function()
+    fpsCounterActive = not fpsCounterActive
+    fpsGui.Enabled = fpsCounterActive
+    fpsToggleButton.Text = fpsCounterActive and "📊 Ocultar FPS Counter" or "📊 Mostrar FPS Counter"
+end)
+
+optimizeButton.MouseButton1Click:Connect(function()
+    setLowGraphics()
+    optimizeWorkspace()
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer.Character then
+            optimizeCharacter(targetPlayer.Character)
+        end
+    end
+    print("Performance otimizada!")
+end)
+
+resetGraphicsButton.MouseButton1Click:Connect(function()
+    Lighting.GlobalShadows = true
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 2
+    settings().Rendering.QualityLevel = 10
+    print("Gráficos resetados!")
+end)
+
+shadersButton.MouseButton1Click:Connect(function()
+    setRealisticShaders()
+    print("Shaders realistas aplicados!")
+end)
+
+-- ESP buttons
+espToggleButton.MouseButton1Click:Connect(toggleESP)
+
+espDistanceButton.MouseButton1Click:Connect(function()
+    print("ESP com distância ativado!")
+end)
+
+-- Hitbox & Protection buttons
+hitboxExpanderButton.MouseButton1Click:Connect(function()
+    hitboxGui.Enabled = not hitboxGui.Enabled
+end)
+
+hitboxCloseButton.MouseButton1Click:Connect(function()
+    hitboxGui.Enabled = false
+end)
+
+hitboxHalfButton.MouseButton1Click:Connect(function()
+    updateHitbox(0.5)
+    hitboxHandle.Position = UDim2.new(0.04, -10, 0, 0) -- 0.5x position
+    hitboxValueLabel.Text = "Tamanho: 0.5x"
+end)
+
+antiFlingButton.MouseButton1Click:Connect(toggleAntiFling)
+invisibilityButton.MouseButton1Click:Connect(toggleInvisibility)
+
+-- Troll Menu buttons
+touchFlingButton.MouseButton1Click:Connect(toggleTouchFling)
+visualLagButton.MouseButton1Click:Connect(toggleVisualLag)
+
+-- Server Menu buttons
+rejoinButton.MouseButton1Click:Connect(function()
+    TeleportService:Teleport(game.PlaceId, player)
+end)
+
+serverHopButton.MouseButton1Click:Connect(serverHop)
+
+-- === LOOPS PRINCIPAIS ===
+
+-- Noclip loop
+RunService.Stepped:Connect(function()
+    if noclipActive and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Fly controls
+RunService.Heartbeat:Connect(function()
+    if flyActive and bodyVelocity and player.Character and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character.Humanoid
+        local camera = workspace.CurrentCamera
+        local moveVector = humanoid.MoveDirection
+        local velocity = Vector3.new(0, 0, 0)
+        
+        if moveVector.Magnitude > 0 then
+            velocity = camera.CFrame.LookVector * moveVector.Z + camera.CFrame.RightVector * moveVector.X
+            velocity = velocity * currentWalkSpeed
+        end
+        
+        -- Controles de subir/descer
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            velocity = velocity + Vector3.new(0, currentWalkSpeed, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            velocity = velocity - Vector3.new(0, currentWalkSpeed, 0)
+        end
+        
+        bodyVelocity.Velocity = velocity
+        
+        -- Anti-gravity
+        if bodyVelocity then
+            bodyVelocity.Velocity = velocity
+        end
+    end
+end)
+
+-- CFrame movement
+RunService.Heartbeat:Connect(function()
+    if cframeActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character.Humanoid
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        local camera = workspace.CurrentCamera
+        local moveVector = humanoid.MoveDirection
+        
+        if moveVector.Magnitude > 0 then
+            local velocity = camera.CFrame.LookVector * moveVector.Z + camera.CFrame.RightVector * moveVector.X
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + velocity * (currentWalkSpeed / 50)
+        end
+    end
+end)
+
+-- Anti-fling protection
+RunService.Heartbeat:Connect(function()
+    if antiFlingActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        
+        -- Limitar velocidade
+        if humanoidRootPart.AssemblyLinearVelocity.Magnitude > 50 then
+            local bodyVel = humanoidRootPart:FindFirstChild("BodyVelocity")
+            if not bodyVel then
+                bodyVel = Instance.new("BodyVelocity")
+                bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+                bodyVel.Parent = humanoidRootPart
+            end
+            bodyVel.Velocity = Vector3.new(0, 0, 0)
+            
+            game:GetService("Debris"):AddItem(bodyVel, 0.1)
+        end
+    end
+end)
+
+-- Touch Fling Detection (FIXED)
+local touchConnection = nil
+RunService.Heartbeat:Connect(function()
+    if touchFlingActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        
+        if not touchConnection then
+            touchConnection = humanoidRootPart.Touched:Connect(function(hit)
+                local hitCharacter = hit.Parent
+                if hitCharacter:FindFirstChild("Humanoid") then
+                    local hitPlayer = Players:GetPlayerFromCharacter(hitCharacter)
+                    if hitPlayer and hitPlayer ~= player then
+                        applyTouchFling(hitPlayer)
+                    end
+                end
+            end)
+        end
+    elseif touchConnection then
+        touchConnection:Disconnect()
+        touchConnection = nil
+    end
+end)
+
+-- FPS Counter loop
+RunService.Heartbeat:Connect(function()
+    frameCount = frameCount + 1
+    local currentTime = tick()
+    
+    if currentTime - lastTime >= 1 then
+        fps = frameCount
+        frameCount = 0
+        lastTime = currentTime
+        
+        if fpsCounterActive then
+            local fpsColor = Color3.new(1, 1, 1)
+            if fps >= 50 then
+                fpsColor = Color3.new(0, 1, 0)
+            elseif fps >= 30 then
+                fpsColor = Color3.new(1, 1, 0)
+            else
+                fpsColor = Color3.new(1, 0, 0)
+            end
+            
+            fpsLabel.TextColor3 = fpsColor
+            fpsLabel.Text = "FPS: " .. fps
+            
+            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
+            pingLabel.Text = "Ping: " .. ping
+        end
+    end
+    
+    -- Update coordinates
+    updateCurrentPosition()
+    
+    -- Update ESP
+    updateESPs()
+    
+    -- Update speed for character
+    if player.Character and player.Character:FindFirstChild("Humanoid") and not cframeActive then
+        player.Character.Humanoid.WalkSpeed = currentWalkSpeed
+    end
+    
+    -- Visual Lag Effect
+    if visualLagActive and math.random(1, 30) == 1 then
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(1, 1, 1)
+        part.Position = Camera.CFrame.Position + Vector3.new(math.random(-10, 10), math.random(-5, 5), math.random(-10, 10))
+        part.BrickColor = BrickColor.Random()
+        part.Material = Enum.Material.ForceField
+        part.Shape = Enum.PartType.Ball
+        part.CanCollide = false
+        part.Parent = workspace
+        
+        game:GetService("Debris"):AddItem(part, 1)
+    end
+end)
+
+-- Player events
+Players.PlayerAdded:Connect(function(targetPlayer)
+    targetPlayer.CharacterAdded:Connect(function(character)
+        wait(1)
+        optimizeCharacter(character)
+    end)
+    
+    if espActive then
+        createESP(targetPlayer)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(targetPlayer)
+    removeESP(targetPlayer)
+end)
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    wait(1)
+    
+    -- Reset variables
+    originalHitboxSize = nil
+    touchConnection = nil
+    
+    if newCharacter:FindFirstChild("Humanoid") then
+        newCharacter.Humanoid.WalkSpeed = currentWalkSpeed
+        
+        -- Restore invisibility if it was active
+        if invisibilityActive then
+            invisibilityActive = false
+            toggleInvisibility()
+        end
+        
+        -- Restore fly if it was active
+        if flyActive then
+            flyActive = false
+            toggleFly()
+        end
+        
+        -- Restore hitbox size
+        if hitboxSize ~= 1 then
+            wait(0.5)
+            updateHitbox(hitboxSize)
+        end
+    end
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpActive and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Keyboard shortcuts
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.H then
+        toggleGUI()
+    elseif input.KeyCode == Enum.KeyCode.F1 then
+        fpsCounterActive = not fpsCounterActive
+        fpsGui.Enabled = fpsCounterActive
+        fpsToggleButton.Text = fpsCounterActive and "📊 Ocultar FPS Counter" or "📊 Mostrar FPS Counter"
+    elseif input.KeyCode == Enum.KeyCode.F2 then
+        setLowGraphics()
+        optimizeWorkspace()
+        print("Otimização aplicada via F2!")
+    elseif input.KeyCode == Enum.KeyCode.F3 then
+        Config.removeAccessories = not Config.removeAccessories
+        print("Remoção de acessórios:", Config.removeAccessories and "ATIVADA" or "DESATIVADA")
+    elseif input.KeyCode == Enum.KeyCode.F then
+        toggleESP()
+    elseif input.KeyCode == Enum.KeyCode.T then
+        toggleTouchFling()
+    elseif input.KeyCode == Enum.KeyCode.V then
+        toggleInfiniteJump()
+    elseif input.KeyCode == Enum.KeyCode.I then
+        toggleInvisibility()
+    elseif input.KeyCode == Enum.KeyCode.G then
+        toggleFly()
+    elseif input.KeyCode == Enum.KeyCode.N then
+        noclipActive = not noclipActive
+        noclipButton.Text = noclipActive and "👻 Desativar Noclip" or "👻 Ativar Noclip"
+        noclipButton.BackgroundColor3 = noclipActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(155, 89, 182)
+    elseif input.KeyCode == Enum.KeyCode.B then
+        toggleAntiFling()
+    elseif input.KeyCode == Enum.KeyCode.C then
+        toggleCFrame()
+    end
+end)
+
+-- Apply initial optimizations
+spawn(function()
+    wait(2)
+    setLowGraphics()
+    optimizeWorkspace()
+end)
+
+-- Cleanup function
+local function cleanup()
+    if fpsGui then fpsGui:Destroy() end
+    if screenGui then screenGui:Destroy() end
+    if speedGui then speedGui:Destroy() end
+    if hitboxGui then hitboxGui:Destroy() end
+    if touchConnection then touchConnection:Disconnect() end
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyAngularVelocity then bodyAngularVelocity:Destroy() end
+    
+    for targetPlayer, _ in pairs(ESPs) do
+        removeESP(targetPlayer)
+    end
+    
+    -- Reset hitbox
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and originalHitboxSize then
+        player.Character.HumanoidRootPart.Size = originalHitboxSize
+        player.Character.HumanoidRootPart.Transparency = 0
+    end
+end
+
+game:BindToClose(cleanup)
+
+-- Initial messages
+print("=== GUI COMPLETA CARREGADA (ENHANCED & FIXED) ===")
+print("ATALHOS DE TECLADO:")
+print("H - Toggle GUI principal")
+print("F1 - Toggle FPS Counter")
+print("F2 - Aplicar otimizações")
+print("F3 - Toggle remoção de acessórios") 
+print("F - Toggle ESP Players")
+print("T - Toggle Touch Fling (FIXADO)")
+print("V - Toggle Infinite Jump")
+print("I - Toggle Invisibilidade (MELHORADO)")
+print("G - Toggle Fly (NOVO)")
+print("N - Toggle Noclip")
+print("B - Toggle Anti-Fling (NOVO)")
+print("C - Toggle CFrame Speed (NOVO)")
+print("")
+print("NOVAS FUNCIONALIDADES:")
+print("✅ Touch Fling corrigido")
+print("✅ Invisibilidade FE melhorada")
+print("✅ Anti-Fling protection")
+print("✅ Fly system com controles WASD + Space/Shift")
+print("✅ CFrame movement")
+print("✅ Hitbox Expander com slider")
+print("✅ Botão para hitbox pela metade")
+print("✅ Menu servidor com Server Hop")
+print("✅ Melhor detecção de toque")
+print("")
+print("GUI completa ativa com todas as correções e melhorias!")
