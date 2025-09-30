@@ -1,373 +1,123 @@
--- LocalScript - Teleport & Noclip GUI Melhorada
+-- Script para copiar link do servidor privado atual do Roblox
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Variáveis principais
-local character = player.Character or player.CharacterAdded:Wait()
-local savedPosition = nil
-local noclipActive = false
-local guiVisible = true
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
--- Criar ScreenGui principal
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TeleportNoclipGUI"
-screenGui.Parent = playerGui
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- Frame principal
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 280, 0, 350)
-mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-
--- Adicionar cantos arredondados
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = mainFrame
-
--- Sombra do frame principal
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 6, 1, 6)
-shadow.Position = UDim2.new(0, -3, 0, -3)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.BackgroundTransparency = 0.7
-shadow.ZIndex = mainFrame.ZIndex - 1
-shadow.Parent = mainFrame
-
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0, 12)
-shadowCorner.Parent = shadow
-
--- Header/Título
-local titleBar = Instance.new("Frame")
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
-titleBar.BorderSizePixel = 0
-titleBar.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = titleBar
-
--- Título
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "TitleLabel"
-titleLabel.Size = UDim2.new(1, -80, 1, 0)
-titleLabel.Position = UDim2.new(0, 10, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🔧 Teleport & Noclip"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = titleBar
-
--- Botão de minimizar
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Name = "MinimizeButton"
-minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-minimizeButton.Position = UDim2.new(1, -40, 0, 5)
-minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-minimizeButton.BorderSizePixel = 0
-minimizeButton.Text = "-"
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.TextScaled = true
-minimizeButton.Font = Enum.Font.GothamBold
-minimizeButton.Parent = titleBar
-
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 15)
-minimizeCorner.Parent = minimizeButton
-
--- Container dos botões
-local buttonContainer = Instance.new("Frame")
-buttonContainer.Name = "ButtonContainer"
-buttonContainer.Size = UDim2.new(1, -20, 1, -60)
-buttonContainer.Position = UDim2.new(0, 10, 0, 50)
-buttonContainer.BackgroundTransparency = 1
-buttonContainer.Parent = mainFrame
-
--- Layout dos botões
-local buttonLayout = Instance.new("UIListLayout")
-buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-buttonLayout.Padding = UDim.new(0, 10)
-buttonLayout.Parent = buttonContainer
-
--- Função para criar botões estilizados
-local function createStyledButton(name, text, color, layoutOrder)
-    local button = Instance.new("TextButton")
-    button.Name = name
-    button.Size = UDim2.new(1, 0, 0, 50)
-    button.BackgroundColor3 = color
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.Gotham
-    button.LayoutOrder = layoutOrder
-    button.Parent = buttonContainer
-    
-    -- Cantos arredondados
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = button
-    
-    -- Efeito de hover
-    local originalColor = color
-    local hoverColor = Color3.fromRGB(
-        math.min(255, color.R * 255 + 20),
-        math.min(255, color.G * 255 + 20),
-        math.min(255, color.B * 255 + 20)
-    )
-    
-    button.MouseEnter:Connect(function()
-        local tween = TweenService:Create(button, 
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {BackgroundColor3 = hoverColor}
-        )
-        tween:Play()
-    end)
-    
-    button.MouseLeave:Connect(function()
-        local tween = TweenService:Create(button, 
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {BackgroundColor3 = originalColor}
-        )
-        tween:Play()
-    end)
-    
-    return button
-end
-
--- Criar botões
-local savePosButton = createStyledButton("SavePosButton", "💾 Salvar Posição", Color3.fromRGB(52, 152, 219), 1)
-local teleportButton = createStyledButton("TeleportButton", "⚡ Teleportar", Color3.fromRGB(46, 204, 113), 2)
-local noclipButton = createStyledButton("NoclipButton", "👻 Ativar Noclip", Color3.fromRGB(155, 89, 182), 3)
-
--- Status label
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-statusLabel.BorderSizePixel = 0
-statusLabel.Text = "📍 Posição não salva"
-statusLabel.TextColor3 = Color3.fromRGB(189, 195, 199)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.LayoutOrder = 4
-statusLabel.Parent = buttonContainer
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 6)
-statusCorner.Parent = statusLabel
-
--- Coordenadas label
-local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Name = "CoordsLabel"
-coordsLabel.Size = UDim2.new(1, 0, 0, 40)
-coordsLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-coordsLabel.BorderSizePixel = 0
-coordsLabel.Text = "X: 0 | Y: 0 | Z: 0"
-coordsLabel.TextColor3 = Color3.fromRGB(127, 140, 141)
-coordsLabel.TextScaled = true
-coordsLabel.Font = Enum.Font.Code
-coordsLabel.LayoutOrder = 5
-coordsLabel.Parent = buttonContainer
-
-local coordsCorner = Instance.new("UICorner")
-coordsCorner.CornerRadius = UDim.new(0, 6)
-coordsCorner.Parent = coordsLabel
-
--- Botão flutuante quando minimizado
-local floatingButton = Instance.new("TextButton")
-floatingButton.Name = "FloatingButton"
-floatingButton.Size = UDim2.new(0, 60, 0, 60)
-floatingButton.Position = UDim2.new(0, 50, 0, 50)
-floatingButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
-floatingButton.BorderSizePixel = 0
-floatingButton.Text = "🔧"
-floatingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-floatingButton.TextScaled = true
-floatingButton.Font = Enum.Font.GothamBold
-floatingButton.Visible = false
-floatingButton.Parent = screenGui
-
-local floatingCorner = Instance.new("UICorner")
-floatingCorner.CornerRadius = UDim.new(0, 30)
-floatingCorner.Parent = floatingButton
-
--- Funcionalidade de arrastar
-local function makeDraggable(frame, dragHandle)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-
-    dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    dragHandle.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-end
-
--- Tornar a GUI arrastável
-makeDraggable(mainFrame, titleBar)
-makeDraggable(floatingButton, floatingButton)
-
--- Função para animar mostrar/ocultar
-local function toggleGUI()
-    guiVisible = not guiVisible
-    
-    if guiVisible then
-        mainFrame.Visible = true
-        floatingButton.Visible = false
+-- Função para obter informações do servidor atual
+local function getCurrentServerInfo()
+    local success, result = pcall(function()
+        -- Tenta acessar o serviço de TeleportService para obter o placeId atual
+        local TeleportService = game:GetService("TeleportService")
         
-        local tween = TweenService:Create(mainFrame, 
-            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-            {Size = UDim2.new(0, 280, 0, 350)}
-        )
-        tween:Play()
+        -- Obtém o ID do jogo atual
+        local placeId = game.PlaceId
+        
+        -- Tenta obter o jobId (ID da sessão/servidor)
+        local jobId = game.JobId or ""
+
+        return placeId, jobId
+    end)
+    
+    if success then
+        return result
     else
-        local tween = TweenService:Create(mainFrame, 
-            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-            {Size = UDim2.new(0, 0, 0, 0)}
-        )
-        tween:Play()
-        
-        tween.Completed:Connect(function()
-            mainFrame.Visible = false
-            floatingButton.Visible = true
-            floatingButton.Position = mainFrame.Position
-        end)
+        return nil, nil
     end
 end
 
--- Eventos dos botões
-minimizeButton.MouseButton1Click:Connect(toggleGUI)
-floatingButton.MouseButton1Click:Connect(toggleGUI)
+-- Função para detectar o sistema operacional
+local function get_os()
+    local os_name = package.config:sub(1,1) == "\\" and "windows" or "unix"
+    return os_name
+end
 
--- Função para atualizar posição atual
-local function updateCurrentPosition()
-    character = player.Character
-    if character then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            local pos = humanoidRootPart.Position
-            coordsLabel.Text = string.format("X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
+-- Função para copiar para área de transferência no Windows
+local function copy_to_clipboard_windows(text)
+    local pipe = io.popen('clip', 'w')
+    if pipe then
+        pipe:write(text)
+        pipe:close()
+        return true
+    end
+    return false
+end
+
+-- Função para copiar para área de transferência no Linux/macOS
+local function copy_to_clipboard_unix(text)
+    local commands = {
+        'xclip -selection clipboard',
+        'xsel --clipboard --input',
+        'pbcopy'
+    }
+    
+    for _, cmd in ipairs(commands) do
+        local pipe = io.popen(cmd, 'w')
+        if pipe then
+            pipe:write(text)
+            local success = pipe:close()
+            if success then return true end
         end
     end
+    return false
 end
 
--- Função para salvar posição
-savePosButton.MouseButton1Click:Connect(function()
-    character = player.Character or player.CharacterAdded:Wait()
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if humanoidRootPart then
-        savedPosition = humanoidRootPart.Position
-        statusLabel.Text = "✅ Posição salva!"
-        statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
-        
-        -- Efeito visual no botão
-        local originalColor = savePosButton.BackgroundColor3
-        savePosButton.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
-        wait(0.1)
-        savePosButton.BackgroundColor3 = originalColor
-        
-        print("Posição salva:", savedPosition)
-    end
-end)
-
--- Função de teleporte
-teleportButton.MouseButton1Click:Connect(function()
-    character = player.Character or player.CharacterAdded:Wait()
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if humanoidRootPart and savedPosition then
-        humanoidRootPart.CFrame = CFrame.new(savedPosition)
-        
-        -- Efeito visual
-        local originalColor = teleportButton.BackgroundColor3
-        teleportButton.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
-        wait(0.1)
-        teleportButton.BackgroundColor3 = originalColor
+-- Função principal para copiar texto
+local function copy_to_clipboard(text)
+    local os_type = get_os()
+    
+    if os_type == "windows" then
+        return copy_to_clipboard_windows(text)
     else
-        statusLabel.Text = "❌ Nenhuma posição salva!"
-        statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
-        wait(2)
-        if savedPosition then
-            statusLabel.Text = "✅ Posição salva!"
-            statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
-        else
-            statusLabel.Text = "📍 Posição não salva"
-            statusLabel.TextColor3 = Color3.fromRGB(189, 195, 199)
-        end
+        return copy_to_clipboard_unix(text)
     end
-end)
+end
 
--- Noclip toggle
-noclipButton.MouseButton1Click:Connect(function()
-    noclipActive = not noclipActive
-    noclipButton.Text = noclipActive and "👻 Desativar Noclip" or "👻 Ativar Noclip"
-    noclipButton.BackgroundColor3 = noclipActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(155, 89, 182)
-end)
-
--- Loop para manter noclip ativado
-RunService.Stepped:Connect(function()
-    if noclipActive then
-        character = player.Character
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide == true then
-                    part.CanCollide = false
-                end
-            end
-        end
+-- Função para gerar o link do servidor privado
+local function generatePrivateServerLink()
+    local placeId, jobId = getCurrentServerInfo()
+    
+    if placeId and jobId and jobId ~= "" then
+        -- Formato do link de servidor privado do Roblox
+        local privateServerLink = "https://www.roblox.com/games/" .. placeId .. "?privateServerLinkCode=" .. jobId
+        return privateServerLink
+    else
+        return nil
     end
-end)
+end
 
--- Loop para atualizar coordenadas
-RunService.Heartbeat:Connect(function()
-    updateCurrentPosition()
-end)
+-- Execução principal
+print("🔍 Obtendo informações do servidor atual...")
 
--- Reconectar quando o personagem respawnar
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-end)
+local serverLink = generatePrivateServerLink()
 
--- Adicionar tecla de atalho (H para toggle da GUI)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.H then
-        toggleGUI()
+if serverLink then
+    print("✅ Servidor detectado!")
+    print("🎮 Place ID: " .. game.PlaceId)
+    print("🔗 Job ID: " .. game.JobId)
+    print("\n📋 Gerando link do servidor privado...")
+    
+    -- Tentar copiar para a área de transferência
+    if copy_to_clipboard(serverLink) then
+        print("✅ Link copiado para a área de transferência!")
+        print("🔗 Link: " .. serverLink)
+        print("🎮 Agora você pode colar (Ctrl+V) para compartilhar!")
+    else
+        print("❌ Não foi possível copiar automaticamente")
+        print("🔗 Link manual: " .. serverLink)
+        print("💡 Copie manualmente o link acima")
     end
-end)
+else
+    print("❌ Não foi possível obter as informações do servidor")
+    print("💡 Certifique-se de que está em um servidor privado válido")
+    
+    -- Mostrar informações disponíveis
+    if game.PlaceId then
+        print("🎮 Place ID: " .. game.PlaceId)
+    end
+    if game.JobId then
+        print("🔗 Job ID: " .. game.JobId)
+    end
+end
 
-print("🔧 Teleport & Noclip GUI carregada! Pressione H para mostrar/ocultar.")
+-- Pausa para o usuário ver a mensagem (apenas no Windows)
+if get_os() == "windows" then
+    print("\n⏳ Pressione qualquer tecla para continuar...")
+    os.execute("pause >nul")
+end
